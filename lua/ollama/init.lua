@@ -64,13 +64,19 @@ end
 -- Function to send the query to the ollama model
 function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
+
+	-- Close the input window
 	vim.api.nvim_win_close(M.input_win, true)
+
+	-- Move cursor away to avoid leaving a cursor line behind
+	vim.cmd("normal! G")
 
 	-- Run the ollama command and capture the output
 	local handle = io.popen('ollama run jarvis <<< "' .. query .. '"')
 	local result = handle:read("*a")
 	handle:close()
 
+	-- Display the output in a new floating window
 	display_output(result)
 end
 
