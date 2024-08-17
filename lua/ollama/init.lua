@@ -50,9 +50,11 @@ end
 
 -- Function to display the output window with Markdown syntax highlighting
 local function display_output(result)
-	-- Close only if there are more than one windows open
+	-- Check if there are more than one windows open before attempting to close
 	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
-		vim.cmd("close")
+		vim.api.nvim_win_close(M.input_win, true)
+	else
+		vim.api.nvim_buf_delete(M.input_buf, { force = true }) -- Delete buffer instead of closing the last window
 	end
 
 	local output_buf = vim.api.nvim_create_buf(false, true)
@@ -124,6 +126,11 @@ function M.select_model()
 				table.insert(models, model_name)
 			end
 		end
+	end
+
+	if #models == 0 then
+		vim.notify("No models available.", vim.log.levels.ERROR)
+		return
 	end
 
 	-- Use telescope to select the model
