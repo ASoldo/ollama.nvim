@@ -1,5 +1,5 @@
 ![image](https://github.com/user-attachments/assets/144aced7-a138-443f-85c6-007f6515b089)
-![image](https://github.com/user-attachments/assets/59cb60da-9327-423b-ba68-c57346d04d38)
+![image](https://github.com/user-attachments/assets/083b7c5f-4256-45ea-9548-9178d6958d4b)
 
 # ollama.nvim
 
