@@ -22,6 +22,11 @@ local function create_input_window()
 	vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
 	vim.fn.prompt_setprompt(buf, "Query: ")
 
+	-- Mark the buffer as unlisted, so it's not part of the buffer list
+	vim.api.nvim_buf_set_option(buf, "buflisted", false)
+	-- Ensure the buffer is wiped when hidden
+	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+
 	vim.cmd("startinsert") -- start in insert mode
 
 	-- Capture the input when Enter is pressed
@@ -63,7 +68,11 @@ local function display_output(result)
 		border = "rounded",
 	})
 
+	-- Mark the buffer as unlisted and non-modifiable
+	vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
 	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
+	-- Ensure the buffer is wiped when hidden
+	vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
 end
 
 -- Function to send the query to the ollama model
