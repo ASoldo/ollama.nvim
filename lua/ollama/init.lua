@@ -68,6 +68,9 @@ local function display_output(result)
 		border = "rounded",
 	})
 
+	-- Set the buffer to use Markdown syntax highlighting
+	vim.api.nvim_buf_set_option(output_buf, "filetype", "markdown")
+
 	-- Mark the buffer as unlisted and non-modifiable
 	vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
 	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
