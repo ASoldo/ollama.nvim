@@ -39,8 +39,10 @@ end
 
 -- Function to display the output window
 local function display_output(result)
-	-- Close all other windows to ensure a clean display
-	vim.cmd("close")
+	-- Close only if there are more than one windows open
+	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
+		vim.cmd("close")
+	end
 
 	local output_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
