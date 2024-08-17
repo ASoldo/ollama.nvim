@@ -33,8 +33,7 @@ local function create_input_window()
 	-- Ensure the buffer is wiped when hidden
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 
-	-- Start in insert mode
-	vim.cmd("startinsert")
+	vim.cmd("startinsert") -- start in insert mode
 
 	-- Capture the input when Enter is pressed
 	vim.api.nvim_buf_set_keymap(
@@ -121,15 +120,10 @@ function M.select_model()
 	for line in result:gmatch("[^\r\n]+") do
 		if line:match("^%S") then
 			local model_name = line:match("^(%S+)")
-			if model_name and model_name ~= "NAME" then
+			if model_name ~= "NAME" then
 				table.insert(models, model_name)
 			end
 		end
-	end
-
-	if #models == 0 then
-		vim.notify("No models available.", vim.log.levels.ERROR)
-		return
 	end
 
 	-- Use telescope to select the model
@@ -143,14 +137,10 @@ function M.select_model()
 			attach_mappings = function(_, map)
 				map("i", "<CR>", function(prompt_bufnr)
 					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
-					if selection then
-						selected_model = selection[1]
-						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-						require("telescope.actions").close(prompt_bufnr)
-						create_input_window()
-					else
-						vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
-					end
+					selected_model = selection[1]
+					vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+					require("telescope.actions").close(prompt_bufnr)
+					create_input_window()
 				end)
 				return true
 			end,
