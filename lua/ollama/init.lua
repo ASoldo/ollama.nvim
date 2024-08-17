@@ -126,26 +126,35 @@ function M.select_model()
 		end
 	end
 
+	if #models == 0 then
+		vim.notify("No models available.", vim.log.levels.ERROR)
+		return
+	end
+
 	-- Use telescope to select the model
 	require("telescope.pickers")
-			.new({}, {
-				prompt_title = "Select Ollama Model",
-				finder = require("telescope.finders").new_table({
-					results = models,
-				}),
-				sorter = require("telescope.config").values.generic_sorter({}),
-				attach_mappings = function(_, map)
-					map("i", "<CR>", function(prompt_bufnr)
-						local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
+		.new({}, {
+			prompt_title = "Select Ollama Model",
+			finder = require("telescope.finders").new_table({
+				results = models,
+			}),
+			sorter = require("telescope.config").values.generic_sorter({}),
+			attach_mappings = function(_, map)
+				map("i", "<CR>", function(prompt_bufnr)
+					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
+					if selection then
 						selected_model = selection[1]
 						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
 						require("telescope.actions").close(prompt_bufnr)
 						create_input_window()
-					end)
-					return true
-				end,
-			})
-			:find()
+					else
+						vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
+					end
+				end)
+				return true
+			end,
+		})
+		:find()
 end
 
 -- Command to start the interaction
