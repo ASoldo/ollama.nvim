@@ -42,7 +42,7 @@ local function create_input_window()
 	M.input_buf = buf
 end
 
--- Function to display the output window
+-- Function to display the output window with Markdown syntax highlighting
 local function display_output(result)
 	-- Close only if there are more than one windows open
 	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
@@ -90,7 +90,7 @@ function M.send_query()
 	local result = handle:read("*a")
 	handle:close()
 
-	-- Display the output in a new floating window
+	-- Display the output in a new floating window with Markdown syntax highlighting
 	display_output(result)
 end
 
