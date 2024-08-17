@@ -50,9 +50,11 @@ end
 
 -- Function to display the output window with Markdown syntax highlighting
 local function display_output(result)
-	-- Close only if there are more than one windows open
+	-- Ensure we don't attempt to close the last window
 	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
-		vim.cmd("close")
+		vim.api.nvim_win_close(M.input_win, true)
+	else
+		vim.api.nvim_buf_delete(M.input_buf, { force = true }) -- Just delete the buffer if it's the last window
 	end
 
 	local output_buf = vim.api.nvim_create_buf(false, true)
@@ -98,14 +100,6 @@ function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
 
 	-- Close the input window before doing anything else
-	vim.api.nvim_win_close(M.input_win, true)
-
-	-- Run the ollama command and capture the output
-	local handle = io.popen("ollama run " .. selected_model .. ' <<< "' .. query .. '"')
-	local result = handle:read("*a")
-	handle:close()
-
-	-- Display the output in a new floating window with Markdown syntax highlighting
 	display_output(result)
 end
 
@@ -126,6 +120,11 @@ function M.select_model()
 		end
 	end
 
+	if #models == 0 then
+		vim.notify("No models available.", vim.log.levels.ERROR)
+		return
+	end
+
 	-- Use telescope to select the model
 	require("telescope.pickers")
 		.new({}, {
@@ -137,10 +136,14 @@ function M.select_model()
 			attach_mappings = function(_, map)
 				map("i", "<CR>", function(prompt_bufnr)
 					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
-					selected_model = selection[1]
-					vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-					require("telescope.actions").close(prompt_bufnr)
-					create_input_window()
+					if selection then
+						selected_model = selection[1]
+						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+						require("telescope.actions").close(prompt_bufnr)
+						create_input_window()
+					else
+						vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
+					end
 				end)
 				return true
 			end,
