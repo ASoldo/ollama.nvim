@@ -33,7 +33,8 @@ local function create_input_window()
 	-- Ensure the buffer is wiped when hidden
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 
-	vim.cmd("startinsert") -- start in insert mode
+	-- Start in insert mode
+	vim.cmd("startinsert")
 
 	-- Capture the input when Enter is pressed
 	vim.api.nvim_buf_set_keymap(
@@ -50,11 +51,9 @@ end
 
 -- Function to display the output window with Markdown syntax highlighting
 local function display_output(result)
-	-- Close the input window only if there are more than one windows open
+	-- Close only if there are more than one windows open
 	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
-		vim.api.nvim_win_close(M.input_win, true)
-	else
-		vim.cmd("bdelete!") -- Just delete the buffer if it's the last window
+		vim.cmd("close")
 	end
 
 	local output_buf = vim.api.nvim_create_buf(false, true)
@@ -100,6 +99,14 @@ function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
 
 	-- Close the input window before doing anything else
+	vim.api.nvim_win_close(M.input_win, true)
+
+	-- Run the ollama command and capture the output
+	local handle = io.popen("ollama run " .. selected_model .. ' <<< "' .. query .. '"')
+	local result = handle:read("*a")
+	handle:close()
+
+	-- Display the output in a new floating window with Markdown syntax highlighting
 	display_output(result)
 end
 
@@ -114,7 +121,7 @@ function M.select_model()
 	for line in result:gmatch("[^\r\n]+") do
 		if line:match("^%S") then
 			local model_name = line:match("^(%S+)")
-			if model_name ~= "NAME" then
+			if model_name and model_name ~= "NAME" then
 				table.insert(models, model_name)
 			end
 		end
@@ -127,28 +134,28 @@ function M.select_model()
 
 	-- Use telescope to select the model
 	require("telescope.pickers")
-			.new({}, {
-				prompt_title = "Select Ollama Model",
-				finder = require("telescope.finders").new_table({
-					results = models,
-				}),
-				sorter = require("telescope.config").values.generic_sorter({}),
-				attach_mappings = function(_, map)
-					map("i", "<CR>", function(prompt_bufnr)
-						local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
-						if selection then
-							selected_model = selection[1]
-							vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-							require("telescope.actions").close(prompt_bufnr)
-							create_input_window()
-						else
-							vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
-						end
-					end)
-					return true
-				end,
-			})
-			:find()
+		.new({}, {
+			prompt_title = "Select Ollama Model",
+			finder = require("telescope.finders").new_table({
+				results = models,
+			}),
+			sorter = require("telescope.config").values.generic_sorter({}),
+			attach_mappings = function(_, map)
+				map("i", "<CR>", function(prompt_bufnr)
+					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
+					if selection then
+						selected_model = selection[1]
+						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+						require("telescope.actions").close(prompt_bufnr)
+						create_input_window()
+					else
+						vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
+					end
+				end)
+				return true
+			end,
+		})
+		:find()
 end
 
 -- Command to start the interaction
