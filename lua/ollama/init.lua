@@ -39,6 +39,9 @@ end
 
 -- Function to display the output window
 local function display_output(result)
+	-- Close all other windows to ensure a clean display
+	vim.cmd("close")
+
 	local output_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
@@ -65,11 +68,8 @@ end
 function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
 
-	-- Close the input window
+	-- Close the input window before doing anything else
 	vim.api.nvim_win_close(M.input_win, true)
-
-	-- Move cursor away to avoid leaving a cursor line behind
-	vim.cmd("normal! G")
 
 	-- Run the ollama command and capture the output
 	local handle = io.popen('ollama run jarvis <<< "' .. query .. '"')
