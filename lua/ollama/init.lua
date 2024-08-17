@@ -33,7 +33,8 @@ local function create_input_window()
 	-- Ensure the buffer is wiped when hidden
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 
-	vim.cmd("startinsert") -- start in insert mode
+	-- Start in insert mode
+	vim.cmd("startinsert")
 
 	-- Capture the input when Enter is pressed
 	vim.api.nvim_buf_set_keymap(
@@ -115,9 +116,6 @@ function M.select_model()
 	local result = handle:read("*a")
 	handle:close()
 
-	-- Debug: Print the result to ensure we're getting the expected output
-	print(result)
-
 	-- Parse the result to get the model names
 	local models = {}
 	for line in result:gmatch("[^\r\n]+") do
@@ -129,9 +127,6 @@ function M.select_model()
 		end
 	end
 
-	-- Debug: Print the parsed models to ensure they are captured correctly
-	print(vim.inspect(models))
-
 	if #models == 0 then
 		vim.notify("No models available.", vim.log.levels.ERROR)
 		return
@@ -139,24 +134,28 @@ function M.select_model()
 
 	-- Use telescope to select the model
 	require("telescope.pickers")
-		.new({}, {
-			prompt_title = "Select Ollama Model",
-			finder = require("telescope.finders").new_table({
-				results = models,
-			}),
-			sorter = require("telescope.config").values.generic_sorter({}),
-			attach_mappings = function(_, map)
-				map("i", "<CR>", function(prompt_bufnr)
-					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
-					selected_model = selection[1]
-					vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-					require("telescope.actions").close(prompt_bufnr)
-					create_input_window()
-				end)
-				return true
-			end,
-		})
-		:find()
+			.new({}, {
+				prompt_title = "Select Ollama Model",
+				finder = require("telescope.finders").new_table({
+					results = models,
+				}),
+				sorter = require("telescope.config").values.generic_sorter({}),
+				attach_mappings = function(_, map)
+					map("i", "<CR>", function(prompt_bufnr)
+						local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
+						if selection then
+							selected_model = selection[1]
+							vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+							require("telescope.actions").close(prompt_bufnr)
+							create_input_window()
+						else
+							vim.notify("No model selected. Please select a model to proceed.", vim.log.levels.WARN)
+						end
+					end)
+					return true
+				end,
+			})
+			:find()
 end
 
 -- Command to start the interaction
