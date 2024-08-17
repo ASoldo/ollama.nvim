@@ -86,8 +86,6 @@ local function display_output(result)
 	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
 	-- Ensure the buffer is wiped when hidden
 	vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
-
-	vim.cmd("startinsert") -- start in insert mode
 end
 
 -- Function to send the query to the ollama model
