@@ -69,6 +69,9 @@ local function display_output(result)
 	-- Set the buffer to use Markdown syntax highlighting
 	vim.api.nvim_buf_set_option(output_buf, "filetype", "markdown")
 
+	vim.api.nvim_buf_set_option(output_buf, "rnu", true)
+	vim.api.nvim_buf_set_option(output_buf, "nu", true)
+
 	-- Insert the result after setting the filetype to ensure correct syntax highlighting
 	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
