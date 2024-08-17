@@ -50,8 +50,6 @@ local function display_output(result)
 	end
 
 	local output_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
-
 	local width = vim.api.nvim_get_option("columns")
 	local height = vim.api.nvim_get_option("lines")
 	local win_height = math.floor(height * 0.3)
@@ -70,6 +68,9 @@ local function display_output(result)
 
 	-- Set the buffer to use Markdown syntax highlighting
 	vim.api.nvim_buf_set_option(output_buf, "filetype", "markdown")
+
+	-- Insert the result after setting the filetype to ensure correct syntax highlighting
+	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
 	-- Mark the buffer as unlisted and non-modifiable
 	vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
