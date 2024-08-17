@@ -49,6 +49,9 @@ local function display_output(result)
 		vim.cmd("close")
 	end
 
+	-- Force a redraw to clear any lingering artifacts
+	vim.cmd("redraw")
+
 	local output_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
