@@ -4,16 +4,15 @@ local M = {}
 local function create_input_window()
 	local buf = vim.api.nvim_create_buf(false, true) -- create a new empty buffer
 	local width = vim.api.nvim_get_option("columns")
-	local height = vim.api.nvim_get_option("lines")
-	local win_height = 1
-	local win_width = math.floor(width * 0.8)
+	local win_height = 3
+	local win_width = math.floor(width)
 
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
 		width = win_width,
 		height = win_height,
-		col = math.floor((width - win_width) / 2),
-		row = math.floor(height / 2),
+		col = 0,
+		row = 0,
 		anchor = "NW",
 		style = "minimal",
 		border = "rounded",
@@ -42,58 +41,64 @@ local function create_input_window()
 	M.input_buf = buf
 end
 
--- Function to display the output window
-local function display_output(result)
-	-- Close only if there are more than one windows open
-	if #vim.api.nvim_tabpage_list_wins(0) > 1 then
-		vim.cmd("close")
-	end
-
-	local output_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
-
+-- Function to create the output window
+local function create_output_window()
+	local buf = vim.api.nvim_create_buf(false, true) -- create a new empty buffer
 	local width = vim.api.nvim_get_option("columns")
 	local height = vim.api.nvim_get_option("lines")
-	local win_height = math.floor(height * 0.3)
-	local win_width = math.floor(width * 0.8)
+	local win_height = math.floor(height * 0.8)
+	local win_width = math.floor(width)
 
-	local output_win = vim.api.nvim_open_win(output_buf, true, {
+	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
 		width = win_width,
 		height = win_height,
-		col = math.floor((width - win_width) / 2),
-		row = math.floor((height - win_height) / 2),
+		col = 0,
+		row = 3, -- Below the input window
 		anchor = "NW",
 		style = "minimal",
 		border = "rounded",
 	})
 
 	-- Mark the buffer as unlisted and non-modifiable
-	vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
-	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
+	vim.api.nvim_buf_set_option(buf, "buflisted", false)
+	vim.api.nvim_buf_set_option(buf, "modifiable", false)
 	-- Ensure the buffer is wiped when hidden
-	vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
+	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+
+	M.output_win = win
+	M.output_buf = buf
+end
+
+-- Function to display the output in the output window
+local function display_output(result)
+	vim.api.nvim_buf_set_option(M.output_buf, "modifiable", true)
+	vim.api.nvim_buf_set_lines(M.output_buf, -1, -1, false, vim.split(result, "\n"))
+	vim.api.nvim_buf_set_option(M.output_buf, "modifiable", false)
+	vim.api.nvim_set_current_win(M.output_win) -- Move cursor to the output window
 end
 
 -- Function to send the query to the ollama model
 function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
 
-	-- Close the input window before doing anything else
-	vim.api.nvim_win_close(M.input_win, true)
+	-- Clear the input field
+	vim.api.nvim_buf_set_lines(M.input_buf, 0, -1, false, { "Query: " })
+	vim.cmd("startinsert")
 
 	-- Run the ollama command and capture the output
 	local handle = io.popen('ollama run jarvis <<< "' .. query .. '"')
 	local result = handle:read("*a")
 	handle:close()
 
-	-- Display the output in a new floating window
+	-- Display the output in the output window
 	display_output(result)
 end
 
--- Command to start the interaction
+-- Function to start the interaction by creating both windows
 function M.start()
 	create_input_window()
+	create_output_window()
 end
 
 return M
