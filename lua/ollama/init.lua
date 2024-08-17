@@ -29,7 +29,7 @@ local function create_input_window()
 		buf,
 		"i",
 		"<CR>",
-		"<cmd>lua require('jarvis').send_query()<CR>",
+		"<cmd>lua require('ollama').send_query()<CR>",
 		{ noremap = true, silent = true }
 	)
 
