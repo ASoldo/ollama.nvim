@@ -49,9 +49,6 @@ local function display_output(result)
 		vim.cmd("close")
 	end
 
-	-- Force a redraw to clear any lingering artifacts
-	vim.cmd("redraw")
-
 	local output_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
@@ -78,12 +75,20 @@ local function display_output(result)
 	vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
 end
 
+-- Function to simulate the progress bar inside the input field
+local function simulate_progress_bar()
+	local progress_line = "Processing... Please wait."
+	local padding = string.rep(" ", 8) -- Adjust padding to control position
+	vim.api.nvim_buf_set_lines(M.input_buf, 0, -1, false, { "Query: " .. padding .. progress_line })
+	vim.cmd("redraw")
+end
+
 -- Function to send the query to the ollama model
 function M.send_query()
 	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
 
-	-- Close the input window before doing anything else
-	vim.api.nvim_win_close(M.input_win, true)
+	-- Simulate a progress bar effect inside the input field
+	simulate_progress_bar()
 
 	-- Run the ollama command and capture the output
 	local handle = io.popen('ollama run jarvis <<< "' .. query .. '"')
@@ -92,6 +97,9 @@ function M.send_query()
 
 	-- Display the output in a new floating window
 	display_output(result)
+
+	-- Optionally, clear the input buffer after the query has been processed
+	vim.api.nvim_buf_set_lines(M.input_buf, 0, -1, false, { "Query: " })
 end
 
 -- Command to start the interaction
