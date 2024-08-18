@@ -1,93 +1,123 @@
 local M = {}
 local selected_model = nil
+local input_buf = nil
+local output_buf = nil
+local input_win = nil
+local output_win = nil
 
--- Function to create the input window
-local function create_input_window()
-	if not selected_model then
-		vim.notify("Please select a model first.", vim.log.levels.WARN)
-		return
+-- Function to create the main window with separate input and output sections
+local function create_main_window()
+	-- Create input buffer and window
+	if not input_buf then
+		input_buf = vim.api.nvim_create_buf(false, true) -- Create a new buffer for input
+		vim.api.nvim_buf_set_option(input_buf, "buflisted", false)
+		vim.api.nvim_buf_set_option(input_buf, "bufhidden", "wipe")
 	end
 
-	local buf = vim.api.nvim_create_buf(false, true) -- create a new empty buffer
+	-- Create output buffer and window
+	if not output_buf then
+		output_buf = vim.api.nvim_create_buf(false, true) -- Create a new buffer for output
+		vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
+		vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
+	end
+
 	local width = vim.api.nvim_get_option("columns")
 	local height = vim.api.nvim_get_option("lines")
-	local win_height = 1
-	local win_width = math.floor(width * 0.8)
+	local input_height = 1
+	local output_height = height - input_height - 7 -- Adjusted to add an extra gap
 
-	local win = vim.api.nvim_open_win(buf, true, {
+	-- Create input window
+	input_win = vim.api.nvim_open_win(input_buf, true, {
 		relative = "editor",
-		width = win_width,
-		height = win_height,
-		col = math.floor((width - win_width) / 2),
-		row = math.floor(height / 2),
+		width = math.floor(width * 0.9),
+		height = input_height,
+		col = math.floor(width * 0.05),
+		row = math.floor(height * 0.05),
 		anchor = "NW",
 		style = "minimal",
 		border = "rounded",
 	})
 
-	vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
-	vim.fn.prompt_setprompt(buf, "Query: ")
+	vim.api.nvim_buf_set_option(input_buf, "buftype", "prompt")
+	vim.fn.prompt_setprompt(input_buf, "Query: ")
+	vim.cmd("startinsert")
 
-	-- Mark the buffer as unlisted, so it's not part of the buffer list
-	vim.api.nvim_buf_set_option(buf, "buflisted", false)
-	-- Ensure the buffer is wiped when hidden
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+	-- Create output window
+	output_win = vim.api.nvim_open_win(output_buf, true, {
+		relative = "editor",
+		width = math.floor(width * 0.9),
+		height = output_height - 4,
+		col = math.floor(width * 0.05),
+		row = math.floor(height * 0.05) + input_height + 2, -- Added an extra gap between input and output
+		anchor = "NW",
+		style = "minimal",
+		border = "rounded",
+	})
 
-	vim.defer_fn(function()
-		vim.cmd("startinsert") -- start in insert mode
-	end, 50)               -- 50ms delay
+	-- Set output buffer as non-modifiable
+	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
 
-	-- Capture the input when Enter is pressed
+	-- Set up the Enter key mapping to trigger the query
 	vim.api.nvim_buf_set_keymap(
-		buf,
+		input_buf,
 		"i",
 		"<CR>",
 		"<cmd>lua require('ollama').send_query()<CR>",
 		{ noremap = true, silent = true }
 	)
 
-	M.input_win = win
-	M.input_buf = buf
+	-- Set up the 'q' keybinding to close the plugin in normal mode for both input and output windows
+	vim.api.nvim_buf_set_keymap(
+		input_buf,
+		"n",
+		"q",
+		"<cmd>lua require('ollama').toggle()<CR>",
+		{ noremap = true, silent = true }
+	)
+	vim.api.nvim_buf_set_keymap(
+		output_buf,
+		"n",
+		"q",
+		"<cmd>lua require('ollama').toggle()<CR>",
+		{ noremap = true, silent = true }
+	)
+
+	-- Set up navigation with `[` and `]`
+	vim.api.nvim_buf_set_keymap(
+		input_buf,
+		"n",
+		"[",
+		"<cmd>lua require('ollama').focus_output()<CR>",
+		{ noremap = true, silent = true }
+	)
+	vim.api.nvim_buf_set_keymap(
+		output_buf,
+		"n",
+		"]",
+		"<cmd>lua require('ollama').focus_input()<CR>",
+		{ noremap = true, silent = true }
+	)
 end
 
--- Function to display the output window with Markdown syntax highlighting
+-- Function to display output in the bottom section
 local function display_output(result)
-	-- Safely handle the closing of the input window
-	if vim.api.nvim_win_is_valid(M.input_win) then
-		vim.api.nvim_win_close(M.input_win, true)
-	end
+	-- Make the output buffer modifiable temporarily
+	vim.api.nvim_buf_set_option(output_buf, "modifiable", true)
 
-	local output_buf = vim.api.nvim_create_buf(false, true)
-	local width = vim.api.nvim_get_option("columns")
-	local height = vim.api.nvim_get_option("lines")
-	local win_height = math.floor(height * 0.3)
-	local win_width = math.floor(width * 0.8)
+	-- Clear the previous content and insert the new result
+	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
 
-	local output_win = vim.api.nvim_open_win(output_buf, true, {
-		relative = "editor",
-		width = win_width,
-		height = win_height,
-		col = math.floor((width - win_width) / 2),
-		row = math.floor((height - win_height) / 2),
-		anchor = "NW",
-		style = "minimal",
-		border = "rounded",
-	})
-
-	-- Set the buffer to use Markdown syntax highlighting
+	-- Set syntax highlighting and make the buffer non-modifiable again
 	vim.api.nvim_buf_set_option(output_buf, "filetype", "markdown")
+	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
 
 	vim.api.nvim_buf_set_option(output_buf, "rnu", true)
 	vim.api.nvim_buf_set_option(output_buf, "nu", true)
 
-	-- Insert the result after setting the filetype to ensure correct syntax highlighting
-	vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.split(result, "\n"))
-
-	-- Mark the buffer as unlisted and non-modifiable
-	vim.api.nvim_buf_set_option(output_buf, "buflisted", false)
-	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
-	-- Ensure the buffer is wiped when hidden
-	vim.api.nvim_buf_set_option(output_buf, "bufhidden", "wipe")
+	-- Move cursor back to input window, reset the prompt, and clear the input line
+	vim.api.nvim_set_current_win(input_win)
+	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "Query: " }) -- Reset prompt
+	vim.cmd("startinsert")
 end
 
 -- Function to send the query to the ollama model
@@ -97,22 +127,33 @@ function M.send_query()
 		return
 	end
 
-	local query = vim.fn.getline("."):sub(8) -- get the query text, removing the "Query: " prompt
+	-- Get the first line of the query text, removing the "Query: " prompt
+	local query_lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+	local query = table.concat(query_lines, " "):sub(8) -- Combine lines and extract the actual query
 
-	-- Safely handle the closing of the input window
-	if vim.api.nvim_win_is_valid(M.input_win) then
-		vim.api.nvim_win_close(M.input_win, true)
-	else
-		vim.api.nvim_buf_delete(M.input_buf, { force = true }) -- Just delete the buffer if the window isn't valid
-	end
-
-	-- Run the ollama command and capture the output
+	-- Run the Ollama command and capture the output
 	local handle = io.popen("ollama run " .. selected_model .. ' <<< "' .. query .. '"')
 	local result = handle:read("*a")
 	handle:close()
 
-	-- Display the output in a new floating window with Markdown syntax highlighting
+	-- Display the output in the output buffer
 	display_output(result)
+
+	-- Clear the input buffer and reset the prompt
+	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "Query: " })
+	vim.cmd("startinsert")
+end
+
+-- Function to focus the input window
+function M.focus_input()
+	vim.api.nvim_set_current_win(input_win)
+	vim.cmd("startinsert")
+end
+
+-- Function to focus the output window
+function M.focus_output()
+	vim.api.nvim_set_current_win(output_win)
+	vim.api.nvim_win_set_cursor(output_win, { 1, 0 }) -- Move cursor to the first line, first character
 end
 
 -- Function to select a model using telescope.nvim
@@ -121,7 +162,6 @@ function M.select_model()
 	local result = handle:read("*a")
 	handle:close()
 
-	-- Parse the result to get the model names
 	local models = {}
 	for line in result:gmatch("[^\r\n]+") do
 		if line:match("^%S") then
@@ -132,7 +172,6 @@ function M.select_model()
 		end
 	end
 
-	-- If no running models are available, check the local models
 	if #models == 0 then
 		handle = io.popen("ollama list")
 		result = handle:read("*a")
@@ -147,14 +186,12 @@ function M.select_model()
 			end
 		end
 
-		-- If no local models are found, show an error
 		if #models == 0 then
 			vim.notify("No models available locally.", vim.log.levels.ERROR)
 			return
 		end
 	end
 
-	-- Use telescope to select the model if models are available
 	require("telescope.pickers")
 			.new({}, {
 				prompt_title = "Select Ollama Model",
@@ -168,7 +205,11 @@ function M.select_model()
 						selected_model = selection[1]
 						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
 						require("telescope.actions").close(prompt_bufnr)
-						create_input_window()
+						create_main_window()
+
+						-- Move cursor to the input window after selecting the model
+						vim.api.nvim_set_current_win(input_win)
+						vim.cmd("startinsert")
 					end)
 					return true
 				end,
@@ -179,6 +220,22 @@ end
 -- Command to start the interaction
 function M.start()
 	M.select_model()
+end
+
+-- Command to toggle the main window
+function M.toggle()
+	if input_buf and vim.api.nvim_buf_is_loaded(input_buf) then
+		if vim.api.nvim_win_is_valid(input_win) then
+			vim.api.nvim_win_close(input_win, true)
+		end
+		if vim.api.nvim_win_is_valid(output_win) then
+			vim.api.nvim_win_close(output_win, true)
+		end
+		input_buf = nil
+		output_buf = nil
+	else
+		M.start()
+	end
 end
 
 return M
