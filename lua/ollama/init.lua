@@ -132,12 +132,21 @@ function M.select_model()
 		end
 	end
 
+	-- If no models are available, allow manual input
 	if #models == 0 then
-		vim.notify("No models available.", vim.log.levels.ERROR)
+		vim.ui.input({ prompt = "No running models found. Enter model name: " }, function(input)
+			if input and #input > 0 then
+				selected_model = input
+				vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+				create_input_window()
+			else
+				vim.notify("No model selected. Please enter a valid model name.", vim.log.levels.WARN)
+			end
+		end)
 		return
 	end
 
-	-- Use telescope to select the model
+	-- Use telescope to select the model if models are available
 	require("telescope.pickers")
 		.new({}, {
 			prompt_title = "Select Ollama Model",
