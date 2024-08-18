@@ -4,6 +4,7 @@ local input_buf = nil
 local output_buf = nil
 local input_win = nil
 local output_win = nil
+local vim = _G.vim
 
 -- Function to create the main window with separate input and output sections
 local function create_main_window()
