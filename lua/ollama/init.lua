@@ -33,7 +33,9 @@ local function create_input_window()
 	-- Ensure the buffer is wiped when hidden
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 
-	vim.cmd("startinsert") -- start in insert mode
+	vim.defer_fn(function()
+		vim.cmd("startinsert") -- start in insert mode
+	end, 50) -- 50ms delay
 
 	-- Capture the input when Enter is pressed
 	vim.api.nvim_buf_set_keymap(
