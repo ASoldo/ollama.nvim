@@ -6,8 +6,47 @@ local input_win = nil
 local output_win = nil
 local vim = _G.vim
 
+local function draw_ascii_borders(bufnr, width, height, title)
+	local border_lines = {}
+
+	-- Top border with title
+	table.insert(border_lines, "╭" .. string.rep("─", width - 2) .. "╮")
+	table.insert(border_lines, "│ " .. title .. string.rep(" ", width - #title - 3) .. "│")
+
+	-- Middle borders (empty space)
+	for i = 1, height - 3 do
+		table.insert(border_lines, "│" .. string.rep(" ", width - 2) .. "│")
+	end
+
+	-- Bottom border
+	table.insert(border_lines, "╰" .. string.rep("─", width - 2) .. "╯")
+
+	-- Set the border lines into the buffer
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, border_lines)
+end
+
+local function create_section(title, width, height, row, col)
+	local bufnr = vim.api.nvim_create_buf(false, true)
+
+	-- Draw the borders
+	draw_ascii_borders(bufnr, width, height, title)
+
+	-- Create a floating window with the buffer
+	vim.api.nvim_open_win(bufnr, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+	})
+end
+
 -- Function to create the main window with separate input and output sections
 local function create_main_window()
+	-- create_section("Status", 30, 10, 0, 0)
+	-- create_section("Files", 30, 10, 11, 0)
+
 	-- Create input buffer and window
 	if not input_buf then
 		input_buf = vim.api.nvim_create_buf(false, true) -- Create a new buffer for input
