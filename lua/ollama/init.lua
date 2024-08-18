@@ -24,7 +24,7 @@ local function create_main_window()
 
 	local width = vim.api.nvim_get_option("columns")
 	local height = vim.api.nvim_get_option("lines")
-	local input_height = 1
+	local input_height = 5
 	local output_height = height - input_height - 7 -- Adjusted to add an extra gap
 
 	-- Create input window
@@ -38,10 +38,8 @@ local function create_main_window()
 		style = "minimal",
 		border = "rounded",
 	})
-
-	vim.api.nvim_buf_set_option(input_buf, "buftype", "prompt")
-	vim.fn.prompt_setprompt(input_buf, "Query: ")
-	vim.cmd("startinsert")
+	vim.api.nvim_buf_set_option(input_buf, "nu", true)
+	vim.api.nvim_buf_set_option(input_buf, "rnu", true)
 
 	-- Create output window
 	output_win = vim.api.nvim_open_win(output_buf, true, {
@@ -58,11 +56,11 @@ local function create_main_window()
 	-- Set output buffer as non-modifiable
 	vim.api.nvim_buf_set_option(output_buf, "modifiable", false)
 
-	-- Set up the Enter key mapping to trigger the query
+	-- Set up the Shift+Enter key mapping to trigger the query
 	vim.api.nvim_buf_set_keymap(
 		input_buf,
 		"i",
-		"<CR>",
+		"<S-CR>",
 		"<cmd>lua require('ollama').send_query()<CR>",
 		{ noremap = true, silent = true }
 	)
@@ -117,31 +115,59 @@ local function display_output(result)
 
 	-- Move cursor back to input window, reset the prompt, and clear the input line
 	vim.api.nvim_set_current_win(input_win)
-	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "Query: " }) -- Reset prompt
 	vim.cmd("startinsert")
 end
 
--- Function to send the query to the ollama model
+-- Function to clean output from unwanted characters
+local function clean_output(output)
+	-- Remove ANSI escape sequences
+	output = output:gsub("\27%[%d+;%d+;%d+;%d+;%d+;%d+m", "") -- Remove specific sequences
+	output = output:gsub("\27%[%d+;%d+m", "")                -- Remove other sequences
+	output = output:gsub("\27%[%d+K", "")                    -- Remove clear line sequences
+	output = output:gsub("\27%[%d+G", "")                    -- Remove cursor move sequences
+	output = output:gsub("\27%[%?25[lh]", "")                -- Remove cursor visibility sequences
+	return output
+end
+
+-- Function to send the query to the ollama model asynchronously
 function M.send_query()
 	if not selected_model then
 		vim.notify("No model selected.", vim.log.levels.WARN)
 		return
 	end
 
-	-- Get the first line of the query text, removing the "Query: " prompt
+	-- Get all lines of the query text from the input buffer
 	local query_lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
-	local query = table.concat(query_lines, " "):sub(8) -- Combine lines and extract the actual query
 
-	-- Run the Ollama command and capture the output
-	local handle = io.popen("ollama run " .. selected_model .. ' <<< "' .. query .. '"')
-	local result = handle:read("*a")
-	handle:close()
+	-- Concatenate all lines with proper escaping for the shell
+	local query = table.concat(vim.tbl_map(vim.fn.shellescape, query_lines), " ")
 
-	-- Display the output in the output buffer
-	display_output(result)
+	-- Display a processing notification
+	vim.notify("Processing request...", vim.log.levels.INFO)
+
+	-- Run the Ollama command asynchronously
+	vim.fn.jobstart({ "bash", "-c", "ollama run " .. selected_model .. ' <<< "' .. query .. '"' }, {
+		stdout_buffered = true,
+		on_stdout = function(_, data)
+			if data then
+				local result = table.concat(data, "\n")
+				result = clean_output(result)
+				-- Display the output in the output buffer
+				display_output(result)
+			end
+		end,
+		on_stderr = function(_, data)
+			-- Ignore stderr errors to prevent showing unwanted messages
+		end,
+		on_exit = function(_, code)
+			if code ~= 0 then
+				vim.notify("Failed to run query.", vim.log.levels.ERROR)
+			end
+		end,
+	})
 
 	-- Clear the input buffer and reset the prompt
-	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "Query: " })
+	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, {})
 	vim.cmd("startinsert")
 end
 
