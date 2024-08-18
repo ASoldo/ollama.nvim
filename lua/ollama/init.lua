@@ -35,7 +35,7 @@ local function create_input_window()
 
 	vim.defer_fn(function()
 		vim.cmd("startinsert") -- start in insert mode
-	end, 50) -- 50ms delay
+	end, 50)               -- 50ms delay
 
 	-- Capture the input when Enter is pressed
 	vim.api.nvim_buf_set_keymap(
@@ -132,40 +132,48 @@ function M.select_model()
 		end
 	end
 
-	-- If no models are available, allow manual input
+	-- If no running models are available, check the local models
 	if #models == 0 then
-		vim.ui.input({ prompt = "No running models found. Enter model name: " }, function(input)
-			if input and #input > 0 then
-				selected_model = input
-				vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-				create_input_window()
-			else
-				vim.notify("No model selected. Please enter a valid model name.", vim.log.levels.WARN)
+		handle = io.popen("ollama list")
+		result = handle:read("*a")
+		handle:close()
+
+		for line in result:gmatch("[^\r\n]+") do
+			if line:match("^%S") then
+				local model_name = line:match("^(%S+)")
+				if model_name ~= "NAME" then
+					table.insert(models, model_name)
+				end
 			end
-		end)
-		return
+		end
+
+		-- If no local models are found, show an error
+		if #models == 0 then
+			vim.notify("No models available locally.", vim.log.levels.ERROR)
+			return
+		end
 	end
 
 	-- Use telescope to select the model if models are available
 	require("telescope.pickers")
-		.new({}, {
-			prompt_title = "Select Ollama Model",
-			finder = require("telescope.finders").new_table({
-				results = models,
-			}),
-			sorter = require("telescope.config").values.generic_sorter({}),
-			attach_mappings = function(_, map)
-				map("i", "<CR>", function(prompt_bufnr)
-					local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
-					selected_model = selection[1]
-					vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
-					require("telescope.actions").close(prompt_bufnr)
-					create_input_window()
-				end)
-				return true
-			end,
-		})
-		:find()
+			.new({}, {
+				prompt_title = "Select Ollama Model",
+				finder = require("telescope.finders").new_table({
+					results = models,
+				}),
+				sorter = require("telescope.config").values.generic_sorter({}),
+				attach_mappings = function(_, map)
+					map("i", "<CR>", function(prompt_bufnr)
+						local selection = require("telescope.actions.state").get_selected_entry(prompt_bufnr)
+						selected_model = selection[1]
+						vim.notify("Selected model: " .. selected_model, vim.log.levels.INFO)
+						require("telescope.actions").close(prompt_bufnr)
+						create_input_window()
+					end)
+					return true
+				end,
+			})
+			:find()
 end
 
 -- Command to start the interaction
